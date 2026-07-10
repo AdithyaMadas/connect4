@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import type { DataConnection, Peer as PeerType } from 'peerjs';
 import { GameBoard } from '@/components/GameBoard';
 import { useConnect4Game } from '@/lib/useConnect4Game';
+import { ICE_CONFIG } from '@/lib/iceConfig';
 
 function JoinInner() {
   const searchParams = useSearchParams();
@@ -19,7 +20,7 @@ function JoinInner() {
     if (!targetId) return;
     setStatus('connecting');
     import('peerjs').then(({ default: Peer }) => {
-      const peer = new Peer();
+      const peer = new Peer({ config: ICE_CONFIG });
       peerRef.current = peer;
 
       peer.on('open', () => {

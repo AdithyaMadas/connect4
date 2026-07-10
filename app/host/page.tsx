@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { DataConnection, Peer as PeerType } from 'peerjs';
 import { GameBoard } from '@/components/GameBoard';
 import { useConnect4Game } from '@/lib/useConnect4Game';
+import { ICE_CONFIG } from '@/lib/iceConfig';
 
 export default function HostPage() {
   const [peerId, setPeerId] = useState<string | null>(null);
@@ -16,7 +17,7 @@ export default function HostPage() {
     let mounted = true;
     import('peerjs').then(({ default: Peer }) => {
       if (!mounted) return;
-      const peer = new Peer();
+      const peer = new Peer({ config: ICE_CONFIG });
       peerRef.current = peer;
 
       peer.on('open', (id) => {

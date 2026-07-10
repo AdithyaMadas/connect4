@@ -49,8 +49,9 @@ whoever clicks "Create New Game" gets a link to send to the other player.
 
 - Both players need to have the tab open at the same time to connect (it's a live P2P link,
   not an async turn-based game with saved state).
-- Connections use PeerJS's free public signaling/STUN server. This works for the vast majority
-  of home networks. If a friend is on a strict corporate/school network, the peer connection can
-  occasionally fail to establish — there's no fallback TURN server configured (adding one, e.g.
-  via a free tier from metered.ca, is possible if you want full reliability).
+- Connections use PeerJS's free public signaling server, plus a free public STUN/TURN relay
+  (Open Relay Project) as a fallback for when a direct connection can't be made (common across
+  different real-world networks, mobile carriers, or strict firewalls). This should cover the
+  vast majority of cases. For heavier use, get your own free TURN credentials from
+  metered.ca and swap them into `lib/iceConfig.ts`.
 - Game state lives only in the two browsers' memory — refreshing the page resets the game.
