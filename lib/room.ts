@@ -7,6 +7,8 @@ export interface RoomState {
   isDraw: boolean;
   p1Token: string;
   p2Token: string | null;
+  p1Name: string;
+  p2Name: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -18,16 +20,26 @@ export interface PublicRoomState {
   winner: Cell | 0;
   isDraw: boolean;
   opponentJoined: boolean;
+  p1Name: string;
+  p2Name: string | null;
   updatedAt: number;
 }
 
 export const ROOM_TTL_SECONDS = 60 * 60 * 6; // rooms expire after 6 hours
+const MAX_NAME_LENGTH = 20;
 
 export function roomKey(roomId: string): string {
   return `connect4:room:${roomId.toUpperCase()}`;
 }
 
-export function newRoomState(p1Token: string): RoomState {
+/** Trims/validates a player-supplied display name, falling back to a default. */
+export function sanitizeName(raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string') return fallback;
+  const trimmed = raw.trim().slice(0, MAX_NAME_LENGTH);
+  return trimmed || fallback;
+}
+
+export function newRoomState(p1Token: string, p1Name: string): RoomState {
   return {
     board: createBoard(),
     currentPlayer: 1,
@@ -35,6 +47,8 @@ export function newRoomState(p1Token: string): RoomState {
     isDraw: false,
     p1Token,
     p2Token: null,
+    p1Name,
+    p2Name: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -47,6 +61,8 @@ export function toPublicState(room: RoomState): PublicRoomState {
     winner: room.winner,
     isDraw: room.isDraw,
     opponentJoined: !!room.p2Token,
+    p1Name: room.p1Name,
+    p2Name: room.p2Name,
     updatedAt: room.updatedAt,
   };
 }

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { getRedis } from '@/lib/redis';
-import { newRoomState, roomKey, ROOM_TTL_SECONDS } from '@/lib/room';
+import { newRoomState, roomKey, sanitizeName, ROOM_TTL_SECONDS } from '@/lib/room';
 
 function generateRoomId(length = 6): string {
   // Avoid ambiguous characters (0/O, 1/I) so codes are easy to read/type aloud.
@@ -13,12 +13,14 @@ function generateRoomId(length = 6): string {
   return out;
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
     const redis = getRedis();
     const roomId = generateRoomId();
     const token = randomUUID();
-    const state = newRoomState(token);
+    const body = await req.json().catch(() => ({}));
+    const name = sanitizeName((body as { name?: string }).name, 'Player 1');
+    const state = newRoomState(token, name);
 
     await redis.set(roomKey(roomId), JSON.stringify(state), { ex: ROOM_TTL_SECONDS });
 

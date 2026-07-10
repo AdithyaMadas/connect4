@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { GameBoard } from '@/components/GameBoard';
 import type { Board, Cell } from '@/lib/connect4';
+import { unlockAudio } from '@/lib/sound';
 
 interface PublicState {
   board: Board;
@@ -11,11 +12,13 @@ interface PublicState {
   winner: Cell | 0;
   isDraw: boolean;
   opponentJoined: boolean;
+  p1Name: string;
+  p2Name: string | null;
   updatedAt: number;
 }
 
-type LocalAuth = { token: string; player: Cell };
-type Phase = 'loading' | 'ready' | 'not_found' | 'full' | 'error';
+type LocalAuth = { token: string; player: Cell | 0 };
+type Phase = 'loading' | 'enter_name' | 'joining' | 'ready' | 'not_found' | 'error';
 
 function storageKey(roomId: string) {
   return `connect4:${roomId}`;
@@ -30,55 +33,60 @@ export default function RoomPage() {
   const [state, setState] = useState<PublicState | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
   const [copied, setCopied] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Establish identity: reconnect using a saved token, or claim the open seat.
+  // Establish identity: reconnect using a saved token, or ask for a name
+  // before claiming the open seat (or falling back to spectating).
   useEffect(() => {
     let cancelled = false;
-
-    async function init() {
-      const saved = localStorage.getItem(storageKey(roomId));
-      if (saved) {
-        try {
-          const parsed: LocalAuth = JSON.parse(saved);
-          if (!cancelled) {
-            setAuth(parsed);
-            setPhase('ready');
-          }
-          return;
-        } catch {
-          localStorage.removeItem(storageKey(roomId));
-        }
-      }
-
+    const saved = localStorage.getItem(storageKey(roomId));
+    if (saved) {
       try {
-        const res = await fetch(`/api/room/${roomId}/join`, { method: 'POST' });
-        if (res.status === 404) {
-          if (!cancelled) setPhase('not_found');
-          return;
-        }
-        if (res.status === 409) {
-          if (!cancelled) setPhase('full');
-          return;
-        }
-        if (!res.ok) throw new Error('join failed');
-        const data = await res.json();
-        const newAuth: LocalAuth = { token: data.token, player: data.player };
-        localStorage.setItem(storageKey(roomId), JSON.stringify(newAuth));
+        const parsed: LocalAuth = JSON.parse(saved);
         if (!cancelled) {
-          setAuth(newAuth);
+          setAuth(parsed);
           setPhase('ready');
         }
+        return;
       } catch {
-        if (!cancelled) setPhase('error');
+        localStorage.removeItem(storageKey(roomId));
       }
     }
-
-    init();
+    if (!cancelled) setPhase('enter_name');
     return () => {
       cancelled = true;
     };
   }, [roomId]);
+
+  const joinRoom = useCallback(async () => {
+    unlockAudio(); // called from a click handler, so this satisfies autoplay policies
+    setPhase('joining');
+    try {
+      const res = await fetch(`/api/room/${roomId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameInput.trim() }),
+      });
+      if (res.status === 404) {
+        setPhase('not_found');
+        return;
+      }
+      if (!res.ok) throw new Error('join failed');
+      const data = await res.json();
+      const newAuth: LocalAuth = { token: data.token, player: data.player };
+      // Spectators get an empty token (nothing to reconnect to) — only
+      // persist real seats so a refresh doesn't strand a player.
+      if (data.player !== 0) {
+        localStorage.setItem(storageKey(roomId), JSON.stringify(newAuth));
+      }
+      setAuth(newAuth);
+      if (data.state) setState(data.state);
+      setPhase('ready');
+    } catch {
+      setPhase('error');
+    }
+  }, [roomId, nameInput]);
 
   // Poll for game state once identity is established.
   useEffect(() => {
@@ -111,6 +119,7 @@ export default function RoomPage() {
   const makeMove = useCallback(
     async (col: number) => {
       if (!auth || !state) return;
+      unlockAudio();
       if (state.currentPlayer !== auth.player || state.winner || state.isDraw) return;
       try {
         const res = await fetch(`/api/room/${roomId}/move`, {
@@ -129,6 +138,7 @@ export default function RoomPage() {
 
   const resetGame = useCallback(async () => {
     if (!auth) return;
+    unlockAudio();
     try {
       const res = await fetch(`/api/room/${roomId}/reset`, {
         method: 'POST',
@@ -161,6 +171,28 @@ export default function RoomPage() {
     );
   }
 
+  if (phase === 'enter_name' || phase === 'joining') {
+    return (
+      <main className="container">
+        <h1>Connect 4</h1>
+        <div className="join-form">
+          <p>What&apos;s your name?</p>
+          <input
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Your name"
+            maxLength={20}
+            autoFocus
+            onKeyDown={(e) => e.key === 'Enter' && nameInput.trim() && joinRoom()}
+          />
+          <button onClick={joinRoom} disabled={!nameInput.trim() || phase === 'joining'}>
+            {phase === 'joining' ? 'Joining…' : 'Join Game'}
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (phase === 'not_found') {
     return (
       <main className="container">
@@ -169,15 +201,6 @@ export default function RoomPage() {
         <button className="button" onClick={() => router.push('/')}>
           Create a New Game
         </button>
-      </main>
-    );
-  }
-
-  if (phase === 'full') {
-    return (
-      <main className="container">
-        <h1>Connect 4</h1>
-        <p className="error">This game already has two players.</p>
       </main>
     );
   }
@@ -200,7 +223,7 @@ export default function RoomPage() {
     );
   }
 
-  if (!state.opponentJoined) {
+  if (!state.opponentJoined && auth.player !== 0) {
     const shareLink = typeof window !== 'undefined' ? window.location.href : '';
     return (
       <main className="container">
@@ -211,6 +234,7 @@ export default function RoomPage() {
           <button onClick={copyLink}>{copied ? 'Copied!' : 'Copy'}</button>
         </div>
         <p>Waiting for your friend to join…</p>
+        <p className="hint">Anyone else who opens this link once the game is full can watch live.</p>
       </main>
     );
   }
@@ -225,6 +249,9 @@ export default function RoomPage() {
         isDraw={state.isDraw}
         myPlayer={auth.player}
         isMyTurn={state.currentPlayer === auth.player}
+        p1Name={state.p1Name || 'Red'}
+        p2Name={state.p2Name || 'Yellow'}
+        canReset={auth.player !== 0}
         makeMove={makeMove}
         resetGame={resetGame}
       />

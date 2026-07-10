@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { getRedis } from '@/lib/redis';
-import { parseRoomState, roomKey, toPublicState, ROOM_TTL_SECONDS } from '@/lib/room';
+import { parseRoomState, roomKey, sanitizeName, toPublicState, ROOM_TTL_SECONDS } from '@/lib/room';
 
-export async function POST(_req: NextRequest, { params }: { params: { roomId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: { roomId: string } }) {
   try {
     const redis = getRedis();
     const key = roomKey(params.roomId);
@@ -12,17 +12,21 @@ export async function POST(_req: NextRequest, { params }: { params: { roomId: st
       return NextResponse.json({ error: 'not_found' }, { status: 404 });
     }
     const state = parseRoomState(raw);
+    const body = await req.json().catch(() => ({}));
+    const name = sanitizeName((body as { name?: string }).name, 'Player 2');
 
-    if (state.p2Token) {
-      return NextResponse.json({ error: 'room_full' }, { status: 409 });
+    if (!state.p2Token) {
+      // Open seat — claim it as player 2.
+      const token = randomUUID();
+      state.p2Token = token;
+      state.p2Name = name;
+      state.updatedAt = Date.now();
+      await redis.set(key, JSON.stringify(state), { ex: ROOM_TTL_SECONDS });
+      return NextResponse.json({ token, player: 2, state: toPublicState(state) });
     }
 
-    const token = randomUUID();
-    state.p2Token = token;
-    state.updatedAt = Date.now();
-    await redis.set(key, JSON.stringify(state), { ex: ROOM_TTL_SECONDS });
-
-    return NextResponse.json({ token, player: 2, state: toPublicState(state) });
+    // Both seats are taken — anyone else who opens the link watches as a spectator.
+    return NextResponse.json({ token: '', player: 0, state: toPublicState(state) });
   } catch (err) {
     console.error('Failed to join room', err);
     return NextResponse.json({ error: 'server_error' }, { status: 500 });

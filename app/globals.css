@@ -148,3 +148,88 @@ p {
 .error {
   color: #f87171;
 }
+
+.hint {
+  font-size: 0.85rem;
+  margin-top: -4px;
+}
+
+.spectator-badge {
+  display: inline-block;
+  background: #334155;
+  color: var(--text);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  margin: 0 0 8px;
+}
+
+/* Pulsing glow around the board when it's your turn — pairs with the turn chime. */
+.board-your-turn {
+  animation: turn-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes turn-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+  }
+}
+
+.confetti-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.win-banner {
+  margin: 24px auto 0;
+  max-width: 320px;
+  padding: 20px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #1e293b, #334155);
+  border: 2px solid #eab308;
+  animation: win-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.win-banner-you {
+  border-color: #22c55e;
+  background: linear-gradient(135deg, #1e293b, #14532d);
+}
+
+.win-banner-emoji {
+  font-size: 2.75rem;
+  animation: win-bounce 1.1s ease-in-out infinite;
+}
+
+.win-banner-text {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-top: 4px;
+}
+
+@keyframes win-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes win-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
