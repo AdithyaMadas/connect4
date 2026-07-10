@@ -33,7 +33,7 @@ export default function HostPage() {
       });
 
       peer.on('error', (err) => {
-        console.error('Peer error', err);
+        console.error('Peer error', err.type, err);
       });
     });
 
