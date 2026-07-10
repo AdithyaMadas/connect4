@@ -14,6 +14,8 @@ interface PublicState {
   opponentJoined: boolean;
   p1Name: string;
   p2Name: string | null;
+  lastMove: { row: number; col: number } | null;
+  spectatorNames: string[];
   updatedAt: number;
 }
 
@@ -88,14 +90,19 @@ export default function RoomPage() {
     }
   }, [roomId, nameInput]);
 
-  // Poll for game state once identity is established.
+  // Poll for game state once identity is established. Spectators include
+  // their token as a heartbeat so the "watching" list stays accurate.
   useEffect(() => {
     if (phase !== 'ready') return;
     let cancelled = false;
 
     async function poll() {
       try {
-        const res = await fetch(`/api/room/${roomId}`, { cache: 'no-store' });
+        const url =
+          auth && auth.player === 0 && auth.token
+            ? `/api/room/${roomId}?spectatorToken=${encodeURIComponent(auth.token)}`
+            : `/api/room/${roomId}`;
+        const res = await fetch(url, { cache: 'no-store' });
         if (res.status === 404) {
           if (!cancelled) setPhase('not_found');
           return;
@@ -114,7 +121,7 @@ export default function RoomPage() {
       cancelled = true;
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [phase, roomId]);
+  }, [phase, roomId, auth]);
 
   const makeMove = useCallback(
     async (col: number) => {
@@ -251,6 +258,8 @@ export default function RoomPage() {
         isMyTurn={state.currentPlayer === auth.player}
         p1Name={state.p1Name || 'Red'}
         p2Name={state.p2Name || 'Yellow'}
+        lastMove={state.lastMove}
+        spectatorNames={state.spectatorNames}
         canReset={auth.player !== 0}
         makeMove={makeMove}
         resetGame={resetGame}

@@ -124,6 +124,23 @@ p {
   }
 }
 
+.cell-last-move {
+  box-shadow: 0 0 0 3px #f1f5f9;
+  animation: last-move-pop 0.35s ease-out;
+}
+
+@keyframes last-move-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .reset {
   margin-top: 20px;
 }
@@ -162,6 +179,11 @@ p {
   border-radius: 999px;
   font-size: 0.85rem;
   margin: 0 0 8px;
+}
+
+.spectators-list {
+  font-size: 0.85rem;
+  margin: -6px 0 16px;
 }
 
 /* Pulsing glow around the board when it's your turn — pairs with the turn chime. */

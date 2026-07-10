@@ -1,5 +1,11 @@
 import { Board, Cell, createBoard } from './connect4';
 
+export interface SpectatorEntry {
+  token: string;
+  name: string;
+  lastSeen: number;
+}
+
 export interface RoomState {
   board: Board;
   currentPlayer: Cell;
@@ -9,6 +15,8 @@ export interface RoomState {
   p2Token: string | null;
   p1Name: string;
   p2Name: string | null;
+  lastMove: { row: number; col: number } | null;
+  spectators: SpectatorEntry[];
   createdAt: number;
   updatedAt: number;
 }
@@ -22,8 +30,13 @@ export interface PublicRoomState {
   opponentJoined: boolean;
   p1Name: string;
   p2Name: string | null;
+  lastMove: { row: number; col: number } | null;
+  spectatorNames: string[];
   updatedAt: number;
 }
+
+/** A spectator not heard from in this long is considered gone. */
+export const SPECTATOR_TIMEOUT_MS = 6000;
 
 export const ROOM_TTL_SECONDS = 60 * 60 * 6; // rooms expire after 6 hours
 const MAX_NAME_LENGTH = 20;
@@ -49,12 +62,18 @@ export function newRoomState(p1Token: string, p1Name: string): RoomState {
     p2Token: null,
     p1Name,
     p2Name: null,
+    lastMove: null,
+    spectators: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 }
 
 export function toPublicState(room: RoomState): PublicRoomState {
+  const now = Date.now();
+  const activeSpectators = (room.spectators || []).filter(
+    (s) => now - s.lastSeen < SPECTATOR_TIMEOUT_MS
+  );
   return {
     board: room.board,
     currentPlayer: room.currentPlayer,
@@ -63,6 +82,8 @@ export function toPublicState(room: RoomState): PublicRoomState {
     opponentJoined: !!room.p2Token,
     p1Name: room.p1Name,
     p2Name: room.p2Name,
+    lastMove: room.lastMove,
+    spectatorNames: activeSpectators.map((s) => s.name),
     updatedAt: room.updatedAt,
   };
 }

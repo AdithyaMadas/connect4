@@ -40,6 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: { roomId: str
     }
 
     state.board = board;
+    state.lastMove = { row: landedRow, col };
     if (checkWin(board, landedRow, col)) {
       state.winner = player;
     } else if (isBoardFull(board)) {

@@ -24,6 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { roomId: str
     state.currentPlayer = 1;
     state.winner = 0;
     state.isDraw = false;
+    state.lastMove = null;
     state.updatedAt = Date.now();
 
     await redis.set(key, JSON.stringify(state), { ex: ROOM_TTL_SECONDS });

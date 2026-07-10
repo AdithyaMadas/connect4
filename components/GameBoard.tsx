@@ -14,12 +14,14 @@ interface GameBoardProps {
   isMyTurn: boolean;
   p1Name: string;
   p2Name: string;
+  lastMove: { row: number; col: number } | null;
+  spectatorNames: string[];
   canReset: boolean;
   makeMove: (col: number) => void;
   resetGame: () => void;
 }
 
-const COLORS: Record<number, string> = { 1: '#ef4444', 2: '#eab308' };
+const COLORS: Record<number, string> = { 1: '#ef4444', 2: '#f5a524' };
 const COLOR_NAMES: Record<number, string> = { 1: 'Red', 2: 'Yellow' };
 
 export function GameBoard({
@@ -31,6 +33,8 @@ export function GameBoard({
   isMyTurn,
   p1Name,
   p2Name,
+  lastMove,
+  spectatorNames,
   canReset,
   makeMove,
   resetGame,
@@ -102,6 +106,12 @@ export function GameBoard({
         {status}
       </p>
 
+      {!isSpectator && spectatorNames.length > 0 && (
+        <p className="spectators-list">
+          👀 Watching: {spectatorNames.join(', ')}
+        </p>
+      )}
+
       <div className={`board ${!isSpectator && isMyTurn && !winner && !isDraw ? 'board-your-turn' : ''}`}>
         {board[0].map((_, col) => (
           <button
@@ -114,7 +124,7 @@ export function GameBoard({
             {board.map((row, rowIdx) => (
               <span
                 key={rowIdx}
-                className="cell"
+                className={`cell ${lastMove && lastMove.row === rowIdx && lastMove.col === col ? 'cell-last-move' : ''}`}
                 style={{ background: row[col] ? COLORS[row[col]] : undefined }}
               />
             ))}
